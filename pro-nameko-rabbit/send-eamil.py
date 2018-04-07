@@ -1,11 +1,19 @@
-import yamail
-from nameko.rpc import rpc, RpcProxy
+#coding: utf-8
+import yagmail
 
-class SendEmail(object):
-	name = "eamil"
 
-	@rpc
+class Email(object):
+	
+	def __init__(self):
+		self.eamil = "wanglm.mickel@gmail.com"
+		self.password = "wlm19941118"
+
+
 	def send(self, to, subject, content):
-		yag = yamail.SMTP("wanglm.mickel@gmail.com", "wlm19941118")
-		yag.send(to=to.encode("utf-8"), subject=subject.encode("utf-8"),\
-			contents=[content.encode("utf-8")])
+		yag = yagmail.SMTP(self.eamil, self.password)
+		yag.send(to, subject,contents=[content])
+
+
+if __name__ == '__main__':
+	email = Email()
+	email.send("wanglm.mickel@gmail.com", "Hello", "Hello Mickelwang !")
