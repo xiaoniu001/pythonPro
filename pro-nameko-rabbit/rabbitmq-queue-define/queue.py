@@ -1,37 +1,42 @@
 # coding: utf-8
 
 import pika
+import sys
+import random
 
-class Queue(object):
-	"""define a queue"""
+class Rabbitmq(object):
+	"""define a Rabbitmq"""
+
+	def __init__(self):
 	
-	connection = None
-
-
-	def __init__(self, IP, Name):
-		self.IP = IP
-		self.Name = Name
+		self.connection=None
+		self.channel=None
 		
 
-	def creat_connection(self):
-		connection = pika.BlockingConnection(pika.ConnectionParameters(self.IP))
-		channel = connection.channel()
-		return channel
+	def creat_channel(self, IP):
+		self.connection = pika.BlockingConnection(pika.ConnectionParameters(IP))
+		self.channel = self.connection.channel()
+	
 
-
-	def creat_queue(self):
-		channel = self.creat_connection()
-		queue = channel.queue_declare(queue=self.Name, durable=True)
+	def creat_queue(self, IP, Name):
+		self.creat_channel(IP)
+		queue = self.channel.queue_declare(queue=Name, durable=True)
 		return queue
 
 
-	def send_message(self, message):
-		queue = self.creat_queue()
-		channel.basic_publish(exchange="", routing_key=queue, body=message)
+	def send_message(self, message, Name):
+		self.channel.basic_publish(exchange="", routing_key=Name, body=message,
+			properties=pika.BasicProperties(delivery_mode=2))# make message persistent
 		print(" [x] Sent %r" % message)
-		self.creat_queue().connection.close()
+		self.connection.close()
 
-		
+
+if __name__ == '__main__':
+	rabbitmq = Rabbitmq()
+	queue = rabbitmq.creat_queue("localhost", "task_queue")
+	message = random.randint(1,10)
+	print(message)
+	rabbitmq.send_message(str(message), "task_queue")
 
 		
 		
