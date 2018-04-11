@@ -20,6 +20,7 @@ class Worker(object):
 	
 	def consume(self, rabbitmq, Name):
 		print(' [*] Waiting for messages. To exit press CTRL+C')
+		self.rabbitmq.channel.queue_bind(exchange="logs", queue=Name)
 		# This tells RabbitMQ not to give more than one message to a worker at a time
 		self.rabbitmq.channel.basic_qos(prefetch_count=1)
 		self.rabbitmq.channel.basic_consume(self.callback,
@@ -29,6 +30,9 @@ class Worker(object):
 
 if __name__ == '__main__':
 	rabbitmq = Rabbitmq()
-	queue = rabbitmq.creat_queue("localhost", "task_queue")
+	queue = rabbitmq.creat_queue("localhost","", "logs")
+	if not queue:
+		result = rabbitmq.channel.queue_declare(exclusive=True)
+		queue_name = result.method.queue
 	worker = Worker(rabbitmq)
-	worker.consume(rabbitmq, "task_queue")
+	worker.consume(rabbitmq, queue_name)
