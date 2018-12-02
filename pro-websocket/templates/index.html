@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Title</title>
+	<link href="../statics/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="row clearfix">
+		<div class="col-md-7 column">
+			<textarea id="card" class="col-md-7 column" style="width:100%;" rows="20"></textarea>
+		</div>
+		<div class="col-md-5 column">
+			<form class="form-horizontal" role="form">
+				<div class="form-group">
+					 <label for="port" class="col-sm-2 control-label">端口</label>
+					<div class="col-sm-10">
+						<input type="text" value="COM3" class="form-control" id="port" />
+					</div>
+				</div>
+				<div class="form-group">
+					 <label for="card_type" class="col-sm-2 control-label">卡类型</label>
+					<div class="col-sm-10">
+
+						<select id="card_type" class="form-control">
+							<option value="17u">17u</option>
+							<option value="21u">21u</option>
+						</select>
+					</div>
+				</div>
+
+				<div class="form-group">
+					<div class="col-sm-offset-2 col-sm-10">
+						 <button type="button" id="openPort" value="open" class="btn btn-default">打开串口</button>
+						<button type="button" id="testConnect" class="btn btn-default">测试通讯</button>
+						<button type="button" id="lookCard" class="btn btn-default">寻卡</button>
+					</div>
+				</div>
+			</form>
+
+			<form class="form-horizontal" role="form">
+				<div class="form-group">
+					 <label for="start_block" class="col-sm-2 control-label">开始块</label>
+					<div class="col-sm-2">
+						<input type="text" class="form-control" id="start_block" />
+					</div>
+					<label for="end_block" class="col-sm-2 control-label">终止块</label>
+					<div class="col-sm-2">
+						<input type="text" class="form-control" id="end_block" />
+					</div>
+
+					<button type="button" id="readBlock" value="open" class="btn btn-default btn-success">读块</button>
+
+				</div>
+
+				<div class="form-group">
+					<label for="write_value" class="col-sm-2 control-label">写入值</label>
+					<div class="col-sm-10">
+						<textarea  class="form-control" id="write_value" ></textarea>
+					</div>
+				</div>
+
+				<div class="form-group">
+					<label for="mode" class="col-sm-2 control-label">模式</label>
+					<div class="col-sm-5">
+						<select id="mode" class="form-control">
+							<option value="0">0</option>
+							<option value="1">1</option>
+						</select>
+					</div>
+					<button type="button" id="writeBlock"  class="btn btn-default btn-success">写块</button>
+				</div>
+			</form>
+
+
+
+
+		</div>
+	</div>
+</div>
+<script src="../statics/jquery.min.js"></script>
+<script src="../statics/js/bootstrap.min.js"></script>
+<script src="../statics/js/myjs.js"></script>
+<script>
+	var ws = new WebSocket("ws://localhost:8000/websocket");
+	ws.onopen = function() {
+		 ws.send(JSON.stringify({"message": "connectReq"}));
+	};
+	ws.onmessage = function (evt) {
+		console.log(evt.data);
+		data = JSON.parse(evt.data)
+		$("#card").val($("#card").val()+"\n"+data['message']);
+	};
+
+	$("#openPort").click(function(){
+		var value = $('#openPort').val();
+		if(value == "open"){
+			$(this).html("关闭串口");
+			$(this).val("close");
+			var port = $('#port').val();
+			var card_type = $('#card_type').val();
+			ws.send(JSON.stringify({"message": "openPort", "port":port, "card_type":card_type}));
+		}else{
+			$(this).html("打开串口");
+			$(this).val("open");
+			ws.send(JSON.stringify({"message": "closePort"}));
+		}
+
+	});
+
+	$("#testConnect").click(function(){
+		ws.send(JSON.stringify({"message": "testConnect", "time_light":"50", "voicetimes":3, "voiceshut":"50", "voicesilent":"50"}));
+	});
+
+	$("#lookCard").click(function(){
+		ws.send(JSON.stringify({"message": "lookCard"}));
+	});
+
+	$("#readBlock").click(function(){
+		var start_block = $('#start_block').val();
+		var end_block = $('#end_block').val();
+		ws.send(JSON.stringify({"message": "readBlock", "start_block": start_block, "end_block": end_block}));
+	});
+
+	$('#writeBlock').click(function(){
+		var start_block = $('#start_block').val();
+		var end_block = $('#end_block').val();
+		var value = $("#write_value").val();
+		var mode = $('#mode').val();
+
+		if(start_block == "" || end_block == ""){
+			alert("请输入起始块");
+		};
+
+		if(value == ""){
+			alert("请输入写入值");
+		}else{
+			var length = parseInt(end_block) - parseInt(start_block) + 1;
+			if(length == value.split(" ").length){
+				console.log(value.split(" ").length);
+			}else{
+				alert("输入值长度与块数不匹配!");
+			}
+		};
+		ws.send(JSON.stringify({"message": "writeBlock", "start_block": start_block, "end_block": end_block, "mode": mode, "value": value.split(" ")}));
+	});
+
+</script>
+</body>
+</html>
