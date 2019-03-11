@@ -41,9 +41,13 @@ def bcc(hex_str):
 	
 	bcc_code = reduce(xor, hex_str.split(" "))
 	if int(bcc_code) < 16:
-		return (hex_str + "0" + hex(bcc_code)[2:]).replace(" ", "")
+		bcc_str = (hex_str + "0" + hex(bcc_code)[2:]).replace(" ", "")
+		print(bcc_str)
+		return bcc_str
 	else:
-		return (hex_str + hex(bcc_code)[2:]).replace(" ", "")
+		bcc_str = (hex_str + hex(bcc_code)[2:]).replace(" ", "")
+		print(bcc_str)
+		return bcc_str
 
 
 def split_str(str_data):
@@ -82,6 +86,7 @@ class RfridReader(object):
 		"""
 		self.port = port
 		self.baud_rate = baud_rate
+		
 		self.serial = serial.Serial(port=port, baudrate=baud_rate, timeout=1, bytesize=byte_size, stopbits=stopbits)
 	
 	def check_serial(self):
@@ -141,25 +146,46 @@ class RfridReader(object):
 		寻卡21u读卡器
 		:return:
 		"""
-		hex_str = bytes().fromhex("aaff705277")
+		hex_str = bytes().fromhex("aaff702603")
 		try:
+			start = time.clock()
 			self.serial.write(hex_str)
 			res = str(binascii.b2a_hex(self.serial.read(100)))[2:-1]
-			if res:
-				if res == "bbffa0e4":
-					return {"errorcode": "02", "message": "检测区无卡"}
-				elif res[0:6] == "bbff77":
-					return {"errorcode": "03", "message": "卡uid: {}".format(res[6:-2])}
-				elif res[0:6] == "bbff70":
-					return {"errorcode": "03", "message": "卡uid: {}".format(res[6:-2])}
-				else:
-					return {"errorcode": "02", "message": "寻卡响应不正确"}
+			read = time.clock()
+			print("读卡器返回时间", read - start, res)
+			if res == "bbffa0e4":
+				return False
 			else:
-				print("寻卡未收到返回数据")
-				return {"errorcode": "01", "message": "寻卡未收到返回数据"}
+				return "卡uid:{}".format(res[6:-2])
+			
 		except Exception as e:
 			print("寻卡下发指令失败", e)
-			return {"errorcode": "00", "message": "寻卡下发指令失败"}
+			return {"errorcode": "00", "message": "检测区无卡"}
+	
+	# def get_card(self):
+	# 	"""
+	# 	寻卡21u读卡器
+	# 	:return:
+	# 	"""
+	# 	hex_str = bytes().fromhex("aaff705277")
+	# 	try:
+	# 		self.serial.write(hex_str)
+	# 		res = str(binascii.b2a_hex(self.serial.read(100)))[2:-1]
+	# 		if res:
+	# 			if res == "bbffa0e4":
+	# 				return "检测区无卡！"
+	# 			elif res[0:6] == "bbff77":
+	# 				return "卡uid: {}".format(res[6:-2])
+	# 			elif res[0:6] == "bbff70":
+	# 				return "卡uid: {}".format(res[6:-2])
+	# 			else:
+	# 				return "检测区无卡"
+	# 		else:
+	# 			print("寻卡未收到返回数据")
+	# 			return "检测区无卡"
+	# 	except Exception as e:
+	# 		print("寻卡下发指令失败", e)
+	# 		return "检测区无卡！"
 	
 	def close_card(self):
 		"""
@@ -181,22 +207,22 @@ class RfridReader(object):
 		:return:
 		"""
 		hex_str = "aaff12{}".format(check_hex(num))
-		print(hex_str)
+		
 		try:
 			
 			self.serial.write(bytes().fromhex(bcc(split_str(hex_str))))
 			res = str(binascii.b2a_hex(self.serial.read(100)))[2:-1]
-			print(bcc(split_str(hex_str)))
+			print("读卡返回数据：{}".format(res))
 			if res == "bbffa0e4":
-				return dict(errorcode="9999", message="读第{0}块数据包失败！".format(num))
+				return "读卡数据失败！"
 			elif res[0:6] == "bbff12":
-				return dict(errorcode="0000", message="卡第{0}块数据包：{1}".format(num, res[6:14]))
+				return "读数据成功！{0}".format(res[6:14])
 			else:
-				return dict(errorcode="9999", message="读nfc卡返回数据失败！")
-				
+				return "读卡数据失败！"
+		
 		except Exception as e:
-			
-			return dict(errorcode="9999", message="读nfc卡失败！！")
+			print(e)
+			return "读卡数据失败！"
 	
 	def read_card_rfid(self, num, vftype):
 		"""
@@ -224,13 +250,13 @@ class RfridReader(object):
 		try:
 			self.serial.write(bytes().fromhex(bcc(split_str(hex_str))))
 			res = str(binascii.b2a_hex(self.serial.read(100)))[2:-1]
-			print(res)
+			print("验证密码返回：{}".format(res))
 			if res == "bbffa0e4":
 				return dict(errorcode="9999", message="验证密码失败！")
 			elif res[0:6] == "bbff83":
 				return dict(errorcode="0000", message="验证密码成功！")
 			else:
-				return dict(errorcode="9999", message="验证密码返回错误数据！")
+				return dict(errorcode="9999", message="验证密码失败！")
 		
 		except Exception as e:
 			print("nfc卡验证密码失败！！")
@@ -244,50 +270,20 @@ class RfridReader(object):
 		:return:
 		"""
 		if len(data) < 16:
-			data += "0"*(32-len(data))
+			data += "0" * (32 - len(data))
 		hex_str = "aaff22{0}{1}".format(check_hex(num), data)
 		print(hex_str)
 		try:
 			self.serial.write(bytes().fromhex(bcc(split_str(hex_str))))
 			res = str(binascii.b2a_hex(self.serial.read(100)))[2:-1]
-			print(res)
+			print("写卡返回数据：{}".format(res))
 			if res == "bbffa0e4":
-				return dict(errorcode="9999", message="写{0}块失败！{1}".format(num, data))
+				return False
 			elif res[0:6] == "bbffaf":
-				return dict(errorcode="0000", message="写{0}块成功！{1}".format(num, data))
+				return True
 			else:
-				return dict(errorcode="9999", message="验证密码返回错误数据！")
+				return False
 		except Exception as e:
 			print("写卡数据失败！")
-			return dict(errorcode="9999", message="写卡数据失败！")
-		
-	def flow_nfc(self, flow, pwd, num):
-		"""
-		nfc流程：寻卡-读卡-关卡    寻卡-验证密码-写卡-关卡
-		:param flow 0   1
-		:return:
-		"""
-		uid = self.get_card()
-		if flow == "0":
-			
-			if uid['errorcode'] == "03":
-				block = self.read_card_nfc(num)
-				if block['errorcode'] == '0000':
-					self.close_card()
-				else:
-					print("读卡块失败！")
-					return block
-			else:
-				print("寻卡失败！！")
-				return uid
-		else:
-			if uid['errorcode'] == "03":
-				pwd = self.check_pwd(pwd)
-				if pwd['errorcode'] == "0000":
-					pass
-				else:
-					print("验证密码失败")
-					return pwd
-			else:
-				print("寻卡失败！！")
-				return uid
+			return False
+
